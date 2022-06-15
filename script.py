@@ -22,10 +22,10 @@ check_data = []
 list_data_multiple = []
 
 ### read data to serial
-serial_listen = serial.Serial(portPath, baubrate,timeout = timeout)
 
 def read_update():
-    while True:
+    serial_listen = serial.Serial(portPath, baubrate,timeout = timeout)
+    while serial_listen.is_open:
         data=serial_listen.readline()
         data = data.decode('utf8','ignore').strip()
         data = data.split("<=>")
@@ -42,7 +42,7 @@ def read_update():
                 check_data.append(data_handle)
                 # print(check_data)
                 return data_handle
-
+        serial_listen.close()
 
 ### auth admin take token 
 def auth():
@@ -84,11 +84,11 @@ def get_greenhouses():
     try:
         TOKEN = auth()
         role = parameters.ROLE
-        role = json.dumps(role)
+        # role = json.dumps(role)
         header = {'content-Type': 'application/json',
             'Authorization': 'Bearer {}'.format(TOKEN) 
             }
-        data = requests.get(parameters.GET_GREENHOUSES,data=role,headers=header)
+        data = requests.get(parameters.GET_GREENHOUSES,params=role,headers=header)
         data = data.json()
         lists = data["greenhouses"]
         lists = list(map(map_handle_green,lists))
@@ -102,11 +102,11 @@ def get_greenhouses_id():
     try:
         TOKEN = auth()
         role = parameters.ROLE
-        role = json.dumps(role)
+        # role = json.dumps(role)
         header = {'content-Type': 'application/json',
             'Authorization': 'Bearer {}'.format(TOKEN) 
             }
-        data = requests.get(parameters.GET_GREENHOUSES,data=role,headers=header)
+        data = requests.get(parameters.GET_GREENHOUSES,params=role,headers=header)
         data = data.json()
         lists = data["greenhouses"]
         lists = list(map(map_handle_green_id,lists))
@@ -119,11 +119,11 @@ def get_user():
     try:
         TOKEN = auth()
         role = parameters.ROLE
-        role = json.dumps(role)
+        # role = json.dumps(role)
         header = {'content-Type': 'application/json',
             'Authorization': 'Bearer {}'.format(TOKEN) 
             }
-        data = requests.get(parameters.GET_USER,data=role,headers=header)
+        data = requests.get(parameters.GET_USER,params=role,headers=header)
         data = data.json()
         lists = data["users"]
         lists = list(map(map_handle_users,lists))
@@ -132,17 +132,18 @@ def get_user():
     except Exception as e:
         print("erro get user",e)       
 
-
 ### handle data 
 
 def list_name_handle(data):
     lists_name_enddevice = []
     key = data[0][1]
-    lists_name_enddevice.append(key)    
+    lists_name_enddevice.append(key)
     for i in range(len(data)):
         if key != data[i][1]:
             lists_name_enddevice.append(data[i][1])
             key == data[i][1]
+            return lists_name_enddevice
+        else:
             return lists_name_enddevice
 
 def average(data):
@@ -159,6 +160,7 @@ def handle_data(data):
         data.sort()
         lists = list_name_handle(data)
         array_request = []
+        # print(lists)
         for i in range(len(lists)):
             o =[]
             Temp =[]
@@ -178,6 +180,7 @@ def handle_data(data):
                     }
                 }
                 array_request.append(data_checked)
+                # print(array_request)
         return array_request   
     except Exception as e:
         print(e)
@@ -218,6 +221,8 @@ def data_request_handle():
 
 def request_data_server():
     try:
+        # print(check_data)
+        handle_data(check_data)
         data_request_handle()
         if list_data_multiple:
             for i in range(len(list_data_multiple)):
@@ -226,6 +231,7 @@ def request_data_server():
                     greenhouse_to_server  = json.dumps(greenhouse_to_server)
                     res = requests.post(url, data = greenhouse_to_server, headers=header)
             print(res.status_code)
+            print(greenhouse_to_server)
         list_data_multiple.clear()
     except Exception as e:
         print("erro request")
@@ -236,7 +242,7 @@ def request_data_server():
 scheduler = BlockingScheduler()
 def schedule_data_day():
     scheduler.add_job(read_update,'cron',day_of_week='0-6',hour='0-23',second="*/5") #rm reead_data
-    scheduler.add_job(request_data_server,'cron',day_of_week='0-6',hour='0-23', minute="*/1" )
+    scheduler.add_job(request_data_server,'cron',day_of_week='0-6',hour='0-23', minute="*/5" )
 
 ### Run edge  
 print("RUN")
